@@ -17,7 +17,7 @@ from time import time
 from sklearn.model_selection import KFold
 from sklearn.metrics import accuracy_score
 from sklearn.neighbors import KNeighborsClassifier
-
+from sklearn.metrics import average_precision_score
 
 
 class Kneighbor:
@@ -56,6 +56,9 @@ class Kneighbor:
             tr_x, va_x, tr_y, va_y = train_test_split(
                 self.X, self.y, test_size=0.2)
 
+            if self.search_para:
+                self.search_parameter(tr_x, tr_y, va_x, va_y)
+
             score, pred, model = self.train(tr_x, tr_y, va_x, va_y)
             scores.append(score)
             self.epoch_log(score, 0, 1)
@@ -83,12 +86,13 @@ class Kneighbor:
             '{}/{}_Fold: val_accuracy: {}'.format(i + 1, n_splits, score))
 
     def metric(self, va_y, pred):
-        return accuracy_score(va_y, pred)
+        score = average_precision_score(va_y, pred)
+        return score
 
     def search_parameter(self, tr_x, tr_y, va_x, va_y):
         accuracy_list = []
         sns.set()
-        k_range = range(1, 40)
+        k_range = range(1, 5)
         for k in k_range:
             print("start: {}".format(k))
             knn = KNeighborsClassifier(n_neighbors=k)

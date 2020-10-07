@@ -8,6 +8,8 @@ def one_hot_encoding(df, cat_cols):
     """ワンホット表現
     """
     ohe = OneHotEncoder(sparse=False, categories='auto')
+    for c in cat_cols:
+        df[c] = df[c].fillna('missing')
     ohe.fit(df[cat_cols])
 
     # ダミー変数の列名の作成
@@ -32,6 +34,7 @@ def label_encoding(df, cat_cols):
         le = LabelEncoder()
         le.fit(values)
         df[c + '_label'] = le.transform(values)
+        # df[c] = le.transform(values)
     return df
 
 

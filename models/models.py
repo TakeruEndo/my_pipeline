@@ -16,5 +16,5 @@ class CustomLinear(nn.Module):
         x = nn.functional.relu(self.fc2(x))
         x = self.drop(x)
         x = self.fc3(x)
-        # x = self.softmax(x)
+        x = self.softmax(x)
         return x

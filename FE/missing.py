@@ -5,6 +5,13 @@ import numpy as np
 def missing_mean(df, columns):
     for c in columns:
         df[c] = df[c].fillna(np.nanmean(df[c].values))
+    return df
+
+
+def missing_median(df, columns):
+    for c in columns:
+        df[c] = df[c].fillna(np.nanmedian(df[c].values))
+    return df
 
 
 def missing_mean_2(df, columns):
@@ -30,6 +37,7 @@ def rename_columns(df, dict_name):
     new_name = dict_name
     df.rename(new_name, axis=1, inplace=True)
     return df
+
 
 def sub_number(x):
     """数字以外を除去

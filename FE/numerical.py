@@ -85,7 +85,18 @@ def move_average(df, target, shift_size, window_size):
         shift_size).rolling(window=window_size).max()
 
 
-def simple_statitics(df, id, target):
+def columns_renamer(df, ids, keyward):
+    name = ''
+    for id in ids:
+        name = name + id + '_'
+    for i in df.columns:
+        if i != id:
+            new_name = {i: f'{i}_{name}{keyward}'}
+            df.rename(new_name, axis=1, inplace=True)
+    return df
+
+
+def group_statitics(df, id, targets):
     """単純な統計量をとる
     ・合計
     ・平均
@@ -94,10 +105,37 @@ def simple_statitics(df, id, target):
     ・最小
     https://deepage.net/features/pandas-groupby.html
     """
-    df['max_' + target + '_every_' + id] = df.groupby([id])[target].max()
-    df['max_' + target + '_every_' + id] = df.groupby([id])[target].min()
-    df['max_' + target + '_every_' + id] = df.groupby([id])[target].std()
-    df['max_' + target + '_every_' + id] = df.groupby([id])[target].mean()
+    max_ = df.groupby(id)[targets].max()
+    max_ = columns_renamer(max_, id, 'max')
+    min_ = df.groupby(id)[targets].min()
+    min_ = columns_renamer(min_, id, 'min')
+    sum_ = df.groupby(id)[targets].sum()
+    sum_ = columns_renamer(sum_, id, 'sum')
+    last_ = df.groupby(id)[targets].last()
+    last_ = columns_renamer(last_, id, 'last')
+    std_ = df.groupby(id)[targets].std()
+    std_ = columns_renamer(std_, id, 'std')
+    mean_ = df.groupby(id)[targets].mean()
+    mean_ = columns_renamer(mean_, id, 'mean')
+
+    df = pd.merge(df, max_, on=id, how='left')
+    df = pd.merge(df, min_, on=id, how='left')
+    df = pd.merge(df, sum_, on=id, how='left')
+    df = pd.merge(df, last_, on=id, how='left')
+    df = pd.merge(df, mean_, on=id, how='left')
+    return df
+
+
+def row_count(df, id_list, target):
+    """与えたカラムの共通レコードの数をカウントする
+    使用例:
+    id_list = [['Aid', 'Bid'], ['Aid', 'Cid'], ['Dis', 'Eid']]
+    df = row_count(df, id_list, ['ユニークなID'])
+    """
+    for id in id_list:
+        count_ = df.groupby(id)[target].count()
+        count_ = columns_renamer(count_, id, 'count')
+        df = pd.merge(df, count_, on=id, how='left')
     return df
 
 
@@ -108,22 +146,29 @@ def get_power(df, target):
     return df
 
 
-def rolling_features(df, target):
-    window_sizes = [6, 12]
+def rolling_features(df, target, window_sizes, types):
     for window in window_sizes:
-        df["rolling_mean_" + str(window) + target
-           ] = df[target].rolling(window=window).mean()
-        df["rolling_std_" + str(window) + target
-           ] = df[target].rolling(window=window).std()
-        df["rolling_min_" + str(window) + target
-           ] = df[target].rolling(window=window).min()
-        df["rolling_max_" + str(window) + target
-           ] = df[target].rolling(window=window).max()
+        if 'mean' in types:
+            df["rolling_mean_" + str(window) + target
+               ] = df[target].rolling(window=window).mean()
+        if 'std' in types:
+            df["rolling_std_" + str(window) + target
+               ] = df[target].rolling(window=window).std()
+        if 'min' in types:
+            df["rolling_min_" + str(window) + target
+               ] = df[target].rolling(window=window).min()
+        if 'max' in types:
+            df["rolling_max_" + str(window) + target
+               ] = df[target].rolling(window=window).max()
+        if 'sum' in types:
+            df["rolling_sum_" + str(window) + target
+               ] = df[target].rolling(window=window).sum()
+    return df
 
 
 def get_polynomialFeatures(df, columns):
     df_importance = df[columns]
-    pf = PolynomialFeatures(degree=2, include_bias=False)
+    pf = PolynomialFeatures(degree=3, include_bias=False)
     new_X = pf.fit_transform(df_importance)
     for i in range(new_X.shape[1]):
         df[str(i) + '_new_col'] = new_X[:, i]

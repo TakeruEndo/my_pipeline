@@ -13,8 +13,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from tqdm.notebook import trange
-from sklearn.model_selection import KFold, GroupKFold, train_test_split
-from sklearn.metrics import accuracy_score
+from sklearn.model_selection import KFold, GroupKFold, train_test_split, StratifiedKFold
+from sklearn.metrics import accuracy_score, average_precision_score
 from catboost import CatBoost, Pool, CatBoostClassifier, CatBoostRegressor
 
 from models.utils import save_feature_impotances, save_params
@@ -27,9 +27,9 @@ class Catboost:
         self.X_test = X_test
         self.output_path = output_path
         self.params = {
-            'loss_function': 'RMSE',
-            'num_boost_round': 1000,
-            'depth': 10,
+            'loss_function': 'Logloss',
+            'num_boost_round': 500,
+            'depth': 6,
             'colsample_bylevel': 0.5,
             'early_stopping_rounds': 300,
             'l2_leaf_reg': 18,
@@ -65,6 +65,23 @@ class Catboost:
             y_pred += pred
             final_score = score
 
+        elif self.fold_type == 'skfold':
+            kf = StratifiedKFold(n_splits=self.n_splits,
+                                 shuffle=True, random_state=71)
+            for i, (tr_idx, va_idx) in enumerate(kf.split(X=self.X, y=self.y)):
+                # if i != 0:
+                #     continue
+                tr_x, va_x = self.X.iloc[tr_idx], self.X.iloc[va_idx]
+                tr_y, va_y = self.y.iloc[tr_idx], self.y.iloc[va_idx]
+
+                score, pred, model = self.train(tr_x, tr_y, va_x, va_y)
+                scores.append(score)
+                self.epoch_log(score, i, self.n_splits)
+
+                y_pred += pred / self.n_splits
+
+            final_score = sum(scores) / self.n_splits
+
         print('avarage_accuracy: {}'.format(final_score))
         logging.info('avarage_accuracy: {}'.format(final_score))
 
@@ -78,17 +95,18 @@ class Catboost:
         train_pool = Pool(tr_x, label=tr_y)
         test_pool = Pool(va_x, label=va_y)
 
-        model = CatBoostRegressor(**self.params)
+        model = CatBoostClassifier(**self.params)
 
         model.fit(train_pool,
                   eval_set=[test_pool],
                   verbose=False,
                   use_best_model=True)
 
-        # y_val_pred = model.predict(va_x)
-        # score = self.metric(va_y, y_val_pred)
-        score = 0
-        pred = model.predict(self.X_test)
+        y_val_pred = model.predict_proba(va_x)
+        y_val_pred = np.array([i[1] for i in y_val_pred])
+        score = self.metric(va_y, y_val_pred)
+        pred = model.predict_proba(self.X_test)
+        pred = np.array([i[1] for i in pred])
 
         return score, pred, model
 
@@ -97,5 +115,6 @@ class Catboost:
         logging.info(
             '{}/{}_Fold: val_accuracy: {}'.format(i + 1, n_splits, score))
 
-    # def metric(self, va_y, pred):
-    #     return accuracy_score(va_y, pred)
+    def metric(self, va_y, pred):
+        score = average_precision_score(va_y, pred)
+        return score

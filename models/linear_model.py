@@ -19,6 +19,7 @@ from sklearn.metrics import accuracy_score
 from sklearn.linear_model import LogisticRegression
 from sklearn.linear_model import LinearRegression, Ridge, Lasso
 from sklearn.metrics import mean_squared_error
+from sklearn.metrics import average_precision_score
 
 from preprocess import preprocess
 
@@ -52,12 +53,12 @@ class Linear_models:
             """ロジスティック回帰
             predict_probで予測値の出力
             """
-            # print('start_Logistic')
-            # model_logr = LogisticRegression(C=1.0)
-            # score, pred = self.train_and_test(
-            #     model_logr, tr_x, tr_y, va_x, va_y, self.X_test, n_splits, i, 'logisticR')
-            # scores_logr.append(score)
-            # y_pred_logr += pred / n_splits
+            print('start_Logistic')
+            model_logr = LogisticRegression(C=1.0)
+            score, pred = self.train_and_test(
+                model_logr, tr_x, tr_y, va_x, va_y, self.X_test, n_splits, i, 'logisticR')
+            scores_logr.append(score)
+            y_pred_logr += pred / n_splits
 
             """線形回帰
             """
@@ -106,7 +107,8 @@ class Linear_models:
     def train_and_test(self, model, tr_x, tr_y, va_x, va_y, X_test, n_splits, fold, model_name):
         model.fit(tr_x, tr_y)
         va_pred = model.predict(va_x)
-        score = np.sqrt(mean_squared_error(va_y, va_pred))
+        score = self.metric(va_y, va_pred)
+        
         pred = model.predict(X_test)
         print('{}---------{}/{}_Fold: val_accuracy: {}'.format(model_name,
                                                                fold + 1, n_splits, score))
@@ -119,3 +121,7 @@ class Linear_models:
         print('{}---------avarage_accuracy: {}'.format(model_name, y_pred))
         logging.info(
             '{}---------avarage_accuracy: {}'.format(model_name, y_pred))
+
+    def metric(self, va_y, pred):
+        score = average_precision_score(va_y, pred)
+        return score
